@@ -1,117 +1,156 @@
 (function() {
   const S = document.createElement('style');
   S.textContent = `
-    #jx-wrap {
+    #jx {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 2147483647;
       background: #0f0f0f; border-top: 2px solid #c8ff00;
       font-family: monospace; display: flex; flex-direction: column;
-      max-height: 60vh; box-shadow: 0 -8px 32px #000a;
+      max-height: 55vh; touch-action: none;
     }
     #jx-out {
-      flex: 1; overflow-y: auto; padding: 8px; font-size: 12px;
-      line-height: 1.6; background: #0a0a0a; -webkit-overflow-scrolling: touch;
+      flex: 1; overflow-y: scroll; padding: 8px 10px; font-size: 13px;
+      line-height: 1.7; background: #0a0a0a; -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
-    .jx-log  { color: #aaa; } .jx-info { color: #44aaff; }
-    .jx-warn { color: #ffaa00; } .jx-error { color: #ff4444; }
-    .jx-result { color: #c8ff00; } .jx-echo { color: #333; font-size: 11px; }
+    .jxl { color: #aaa; } .jxi { color: #44aaff; }
+    .jxw { color: #ffaa00; } .jxe { color: #ff4444; }
+    .jxr { color: #c8ff00; } .jxecho { color: #2a2a2a; font-size: 11px; }
+    #jx-snips {
+      display: flex; gap: 8px; padding: 8px 10px; overflow-x: scroll;
+      background: #111; border-top: 1px solid #1c1c1c;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    #jx-snips::-webkit-scrollbar { display: none; }
+    .jxs {
+      background: #1a1a1a; border: 1px solid #2c2c2c; color: #777;
+      font-family: monospace; font-size: 11px;
+      padding: 6px 14px; border-radius: 99px;
+      white-space: nowrap; flex-shrink: 0;
+      min-height: 32px; display: flex; align-items: center;
+    }
     #jx-row {
-      display: flex; border-top: 1px solid #222; flex-shrink: 0;
+      display: flex; border-top: 1px solid #1c1c1c; flex-shrink: 0;
+      min-height: 52px;
     }
-    #jx-input {
+    #jx-inp {
       flex: 1; background: #111; border: none; outline: none;
-      color: #e8e8e8; font-family: monospace; font-size: 13px;
-      padding: 10px 12px; caret-color: #c8ff00;
+      color: #e8e8e8; font-family: monospace; font-size: 15px;
+      padding: 14px 12px; caret-color: #c8ff00; resize: none;
       -webkit-user-select: text; user-select: text;
+      -webkit-appearance: none;
+      line-height: 1.5; min-height: 52px; max-height: 120px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
+    #jx-btns { display: flex; flex-direction: column; flex-shrink: 0; }
     #jx-run {
-      background: #c8ff00; border: none; color: #000; font-weight: bold;
-      font-size: 13px; padding: 0 18px; cursor: pointer; flex-shrink: 0;
+      flex: 1; background: #c8ff00; border: none; color: #000;
+      font-size: 20px; width: 56px; cursor: pointer;
     }
-    #jx-bar {
-      display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto;
-      background: #0f0f0f; border-top: 1px solid #1a1a1a;
-      scrollbar-width: none;
-    }
-    #jx-bar::-webkit-scrollbar { display: none; }
-    .jx-snip {
-      background: #1a1a1a; border: 1px solid #2a2a2a; color: #666;
-      font-family: monospace; font-size: 10px; padding: 3px 9px;
-      border-radius: 20px; white-space: nowrap; cursor: pointer; flex-shrink: 0;
-    }
-    #jx-close {
-      background: none; border: none; color: #444; font-size: 16px;
-      padding: 0 10px; cursor: pointer; flex-shrink: 0;
+    #jx-x {
+      flex: 0; background: #1a1a1a; border: none; color: #444;
+      font-size: 14px; width: 56px; height: 28px; cursor: pointer;
+      border-top: 1px solid #111;
     }
   `;
   document.head.appendChild(S);
 
-  const wrap = document.createElement('div'); wrap.id = 'jx-wrap';
-  wrap.innerHTML = `
+  const w = document.createElement('div'); w.id = 'jx';
+  w.innerHTML = `
     <div id="jx-out"></div>
-    <div id="jx-bar">
-      <span class="jx-snip" data-c="console.log(navigator.userAgent)">UA</span>
-      <span class="jx-snip" data-c="console.log(document.title)">title</span>
-      <span class="jx-snip" data-c="console.log(document.querySelectorAll('*').length+' elements')">DOM</span>
-      <span class="jx-snip" data-c="console.log(JSON.stringify(performance.timing,null,2))">timing</span>
-      <span class="jx-snip" data-c="console.log(document.cookie||'(empty)')">cookies</span>
-      <span class="jx-snip" data-c="console.log(localStorage.length+' ls items')">ls</span>
-      <span class="jx-snip" data-c="console.log(screen.width+'x'+screen.height+' dpr='+devicePixelRatio)">screen</span>
-      <span class="jx-snip" data-c="fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>console.log('IP:',d.ip))">IP</span>
+    <div id="jx-snips">
+      <span class="jxs" data-c="console.log(navigator.userAgent)">UA</span>
+      <span class="jxs" data-c="console.log(document.querySelectorAll('*').length+' nodes')">DOM</span>
+      <span class="jxs" data-c="console.log(document.cookie||'(empty)')">cookies</span>
+      <span class="jxs" data-c="console.log(localStorage.length+' ls items')">ls</span>
+      <span class="jxs" data-c="console.log(screen.width+'x'+screen.height+' dpr='+devicePixelRatio)">screen</span>
+      <span class="jxs" data-c="console.log(window.location.href)">url</span>
+      <span class="jxs" data-c="fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>console.log('IP:',d.ip))">IP</span>
+      <span class="jxs" data-c="console.log(performance.now().toFixed(1)+'ms uptime')">perf</span>
     </div>
     <div id="jx-row">
-      <input id="jx-input" placeholder="js here..." autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <button id="jx-run">▶</button>
-      <button id="jx-close">✕</button>
+      <textarea id="jx-inp" placeholder="// js here..." autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" rows="1"></textarea>
+      <div id="jx-btns">
+        <button id="jx-run">▶</button>
+        <button id="jx-x">✕</button>
+      </div>
     </div>
   `;
-  document.body.appendChild(wrap);
+  document.body.appendChild(w);
 
   const out = document.getElementById('jx-out');
-  const inp = document.getElementById('jx-input');
+  const inp = document.getElementById('jx-inp');
 
-  function ser(v, d=0) {
+  // prevent page scroll when scrolling output
+  out.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+
+  // auto-resize textarea
+  inp.addEventListener('input', () => {
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+  });
+
+  function ser(v, d) {
+    d = d||0;
     if (d>3) return '…';
     if (v===null) return 'null';
     if (v===undefined) return 'undefined';
-    if (typeof v==='function') return '[Function: '+(v.name||'anon')+']';
-    if (typeof v==='string') return d===0?v:JSON.stringify(v);
-    if (typeof v==='number'||typeof v==='boolean'||typeof v==='symbol') return String(v);
+    if (typeof v==='function') return '[fn:'+(v.name||'?')+']';
+    if (typeof v==='string') return d===0 ? v : JSON.stringify(v);
+    if (typeof v==='number'||typeof v==='boolean') return String(v);
     if (v instanceof Error) return v.constructor.name+': '+v.message;
-    if (Array.isArray(v)) { const i=v.slice(0,10).map(x=>ser(x,d+1)); if(v.length>10)i.push('…'); return '['+i.join(', ')+']'; }
-    if (typeof v==='object') { try { const k=Object.keys(v).slice(0,6); const p=k.map(x=>x+':'+ser(v[x],d+1)); const e=Object.keys(v).length>6?'…':''; return '{'+[...p,e].filter(Boolean).join(', ')+'}'; } catch(e){return '[Object]';} }
+    if (Array.isArray(v)) {
+      var i=v.slice(0,8).map(function(x){return ser(x,d+1)});
+      if(v.length>8)i.push('…+'+( v.length-8));
+      return '['+i.join(', ')+']';
+    }
+    if (typeof v==='object') {
+      try {
+        var k=Object.keys(v).slice(0,5);
+        var p=k.map(function(x){return x+':'+ser(v[x],d+1)});
+        if(Object.keys(v).length>5)p.push('…');
+        return '{'+p.join(', ')+'}';
+      } catch(e){return '[Object]';}
+    }
     return String(v);
   }
 
-  function log(cls, prefix, text) {
-    const d = document.createElement('div');
-    d.className = cls;
-    d.textContent = prefix + ' ' + text;
+  function addLine(cls, pre, txt) {
+    var d=document.createElement('div');
+    d.className=cls;
+    d.textContent=pre+' '+txt;
     out.appendChild(d);
-    out.scrollTop = out.scrollHeight;
+    out.scrollTop=out.scrollHeight;
   }
 
-  const _c = {};
-  ['log','info','warn','error'].forEach(m => {
-    _c[m] = console[m].bind(console);
-    console[m] = (...a) => { _c[m](...a); log('jx-'+m, m.slice(0,3).toUpperCase(), a.map(ser).join(' ')); };
+  var _c={};
+  ['log','info','warn','error'].forEach(function(m){
+    _c[m]=console[m].bind(console);
+    console[m]=function(){
+      var a=Array.prototype.slice.call(arguments);
+      _c[m].apply(console,a);
+      addLine('jx'+m.charAt(0), m.slice(0,3).toUpperCase(), a.map(ser).join(' '));
+    };
   });
 
   function run() {
-    const code = inp.value.trim(); if (!code) return;
-    log('jx-echo', '›', code.length>80?code.slice(0,80)+'…':code);
+    var code=inp.value.trim(); if(!code) return;
+    addLine('jxecho','›', code.length>60?code.slice(0,60)+'…':code);
     try {
-      const r = eval(code);
-      if (r !== undefined) log('jx-result', '←', ser(r));
-    } catch(e) { log('jx-error', 'ERR', e.message); }
+      var r=eval(code);
+      if(r!==undefined) addLine('jxr','←',ser(r));
+    } catch(e) { addLine('jxe','ERR',e.message); }
   }
 
   document.getElementById('jx-run').addEventListener('click', run);
-  inp.addEventListener('keydown', e => { if(e.key==='Enter'&&(e.ctrlKey||e.metaKey||e.shiftKey)) run(); });
-  document.getElementById('jx-close').onclick = () => {
-    ['log','info','warn','error'].forEach(m => console[m]=_c[m]);
-    wrap.remove(); S.remove();
-  };
-  document.querySelectorAll('.jx-snip').forEach(b => b.addEventListener('click', () => { inp.value=b.dataset.c; inp.focus(); }));
 
-  log('jx-info', 'INF', 'ready — Enter+Ctrl/Shift to run');
+  document.getElementById('jx-x').addEventListener('click', function(){
+    ['log','info','warn','error'].forEach(function(m){ console[m]=_c[m]; });
+    w.remove(); S.remove();
+  });
+
+  document.querySelectorAll('.jxs').forEach(function(b){
+    b.addEventListener('click', function(){ inp.value=b.dataset.c; inp.focus(); });
+  });
+
+  addLine('jxi','INF','ready');
 })();
